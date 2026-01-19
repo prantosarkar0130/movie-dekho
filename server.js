@@ -56,6 +56,4 @@ app.get('/details', (req, res) => res.sendFile(path.join(__dirname, 'public', 'd
 app.get('/series', (req, res) => res.sendFile(path.join(__dirname, 'public', 'series.html')));
 app.get('/watch', (req, res) => res.sendFile(path.join(__dirname, 'public', 'watch.html')));
 
-
 app.listen(PORT, () => console.log(`🚀 Live on Port: ${PORT}`));
-
