@@ -7,8 +7,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = "1122"; 
 
-// আপনার MongoDB লিঙ্ক এখানে দিন (পাসওয়ার্ডসহ)
-const MONGO_URI = "mongodb+srv://prantosarkar0130_db_user:tepimim420@trial.1iz7hrg.mongodb.net/?retryWrites=true&w=majority"; 
+// --- আপনার MongoDB লিঙ্ক এখানে দিন ---
+const MONGO_URI = "mongodb+srv://prantosarkar0130_db_user:tepimim420@trial.1iz7hrg.mongodb.net/?appName=Trial"; 
 
 app.use(cors());
 app.use(express.json());
@@ -18,20 +18,23 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Connected!"))
     .catch(err => console.error("❌ Connection Error:", err));
 
-const Movie = mongoose.model('Movie', new mongoose.Schema({
+const movieSchema = new mongoose.Schema({
     title: String, thumb: String, year: String, rating: String,
     category: String, genre: String, desc: String, watchUrl: String,
     seasons: Object, dateAdded: { type: Date, default: Date.now }
-}));
+});
 
-// API Routes
+const Movie = mongoose.model('Movie', movieSchema);
+
+// API: সব ডাটা পাওয়ার জন্য
 app.get('/api/series', async (req, res) => {
     try {
         const movies = await Movie.find().sort({ dateAdded: -1 });
         res.json(movies);
-    } catch (err) { res.status(500).json({ error: "Failed" }); }
+    } catch (err) { res.status(500).json({ error: "Fetch failed" }); }
 });
 
+// API: নতুন মুভি অ্যাড করা
 app.post('/api/series', async (req, res) => {
     const { password, data } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Wrong Password" });
@@ -42,18 +45,27 @@ app.post('/api/series', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Save Error" }); }
 });
 
+// API: মুভি আপডেট (এডিট) করা
+app.put('/api/series/:id', async (req, res) => {
+    const { password, data } = req.body;
+    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Wrong Password" });
+    try {
+        await Movie.findByIdAndUpdate(req.params.id, data);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Update Error" }); }
+});
+
+// API: ডিলিট করা
 app.delete('/api/series/:id', async (req, res) => {
     const { password } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
-    await Movie.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
+    try {
+        await Movie.findByIdAndDelete(req.params.id);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: "Delete Error" }); }
 });
 
 // HTML Routes
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/details', (req, res) => res.sendFile(path.join(__dirname, 'public', 'details.html')));
-app.get('/series', (req, res) => res.sendFile(path.join(__dirname, 'public', 'series.html')));
-app.get('/watch', (req, res) => res.sendFile(path.join(__dirname, 'public', 'watch.html')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, () => console.log(`🚀 Live on Port: ${PORT}`));
