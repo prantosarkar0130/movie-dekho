@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch - MovieBox</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #00ff88; --bg: #0b0f15; --card: #161b22; --border: #30363d; --text-gray: #8b949e; }
+        body { background: var(--bg); margin: 0; color: white; font-family: 'Segoe UI', sans-serif; }
+        
+        .main-wrapper { 
+            display: grid; 
+            grid-template-columns: 1fr 350px; 
+            gap: 25px; 
+            padding: 20px 4%; 
+            max-width: 1600px; 
+            margin: 0 auto; 
+        }
+
+        .player-holder { 
+            width: 100%; 
+            aspect-ratio: 16/9; 
+            background: #000; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            border: 1px solid var(--border); 
+            position: relative; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+
+        #videoPlayerFrame { width: 100%; height: 100%; border: none; position: absolute; }
+        
+        .m-details-box { 
+            background: #111827; 
+            border-radius: 12px; 
+            padding: 25px; 
+            margin-top: 20px; 
+            border: 1px solid var(--border); 
+        }
+
+        .m-title { font-size: 28px; font-weight: bold; color: var(--primary); margin: 0; }
+        
+        .sidebar { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 20px; 
+            border: 1px solid var(--border); 
+            height: fit-content; 
+            position: sticky; 
+            top: 20px; 
+        }
+
+        .season-tabs { 
+            display: flex; 
+            gap: 8px; 
+            overflow-x: auto; 
+            padding-bottom: 10px; 
+            margin-bottom: 15px; 
+            border-bottom: 1px solid var(--border); 
+            scrollbar-width: thin;
+        }
+
+        .s-btn { 
+            background: #21262d; 
+            border: 1px solid var(--border); 
+            color: var(--text-gray); 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 13px; 
+            font-weight: bold; 
+            white-space: nowrap; 
+        }
+
+        .s-btn.active { background: var(--primary); color: #000; }
+        
+        .ep-grid { 
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 10px; 
+        }
+
+        .ep-btn { 
+            background: #21262d; 
+            border: 1px solid var(--border); 
+            color: white; 
+            padding: 12px 0; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            text-align: center; 
+            transition: 0.3s; 
+        }
+
+        .ep-btn.active { 
+            background: var(--primary); 
+            color: #000; 
+            font-weight: bold; 
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); 
+        }
+
+        /* --- নিখুঁত রেসপন্সিভ লজিক --- */
+        @media (max-width: 1100px) { 
+            .main-wrapper { grid-template-columns: 1fr; } 
+            .sidebar { position: static; } 
+        }
+
+        @media (max-width: 768px) {
+            .main-wrapper { padding: 10px 3%; gap: 15px; }
+            .m-title { font-size: 22px; }
+            .m-details-box { padding: 15px; }
+            .ep-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        @media (max-width: 480px) {
+            .ep-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+            .ep-btn { padding: 10px 0; font-size: 13px; }
+            .m-title { font-size: 20px; }
+            .m-details-box { margin-top: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="content-left">
+            <div class="player-holder">
+                <iframe id="videoPlayerFrame" allowfullscreen allow="autoplay"></iframe>
+            </div>
+            <div class="m-details-box">
+                <div id="sTitle" class="m-title">Loading...</div>
+                <div style="margin-top:10px; display:flex; gap:15px; color:var(--primary); font-size:14px; flex-wrap: wrap;">
+                    <span id="sYear"></span> • <span id="sRating"></span> • <span id="sGenre"></span>
+                </div>
+                <p id="sDesc" style="color:var(--text-gray); margin-top:15px; line-height:1.6; font-size: 15px;"></p>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div style="font-weight:bold; margin-bottom:15px; font-size:18px; color:var(--primary);">
+                <i class="fas fa-play-circle"></i> Episodes
+            </div>
+            <div id="seasonBox" class="season-tabs"></div>
+            <div id="epGrid" class="ep-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        let movie = JSON.parse(localStorage.getItem('currentMovie'));
+
+        function init() {
+            if (!movie) return window.location.href = "index.html";
+            
+            document.getElementById('sTitle').innerText = movie.title;
+            document.getElementById('sYear').innerText = movie.year;
+            document.getElementById('sRating').innerText = "⭐ " + movie.rating;
+            document.getElementById('sGenre').innerText = movie.genre || "General";
+            document.getElementById('sDesc').innerText = movie.desc || "No description available.";
+            
+            const seasons = movie.seasons;
+            if (seasons && typeof seasons === 'object' && Object.keys(seasons).length > 0) {
+                const keys = Object.keys(seasons).sort();
+                document.getElementById('seasonBox').innerHTML = keys.map((k, i) => `
+                    <button class="s-btn ${i === 0 ? 'active' : ''}" onclick="changeSeason('${k}')">${k}</button>
+                `).join('');
+                renderEpisodes(seasons[keys[0]]);
+            }
+        }
+
+        function renderEpisodes(eps) {
+            const epGrid = document.getElementById('epGrid');
+            epGrid.innerHTML = eps.map((e, i) => `
+                <button class="ep-btn" onclick="playVideo('${e.url}', this)">${String(i + 1).padStart(2, '0')}</button>
+            `).join('');
+            if(eps.length > 0) playVideo(eps[0].url, epGrid.querySelector('.ep-btn'));
+        }
+
+        function playVideo(url, btn) {
+            document.getElementById('videoPlayerFrame').src = url.trim();
+            document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
+            if(btn) {
+                btn.classList.add('active');
+                // মোবাইল স্ক্রিনে প্লে করার সময় প্লেয়ারের কাছে অটো স্ক্রল হবে
+                if(window.innerWidth < 1100) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            }
+        }
+
+        function changeSeason(k) {
+            renderEpisodes(movie.seasons[k]);
+            document.querySelectorAll('.s-btn').forEach(b => b.classList.toggle('active', b.innerText === k));
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

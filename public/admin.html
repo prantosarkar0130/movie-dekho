@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - MovieBox</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #00ff88; --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --danger: #da3633; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 10px; }
+        .container { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 480px 1fr; gap: 20px; }
+        .admin-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: sticky; top: 10px; height: fit-content; max-height: 95vh; overflow-y: auto; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #8b949e; }
+        input, select, textarea { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: white; border-radius: 8px; box-sizing: border-box; outline: none; }
+        .season-box { border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 15px; background: #0d1117; }
+        .ep-row { display: flex; gap: 5px; margin-bottom: 8px; }
+        .btn-add { background: #1f6feb; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; width: 100%; margin-bottom: 10px; font-weight: bold; }
+        .btn-submit { background: var(--primary); color: black; border: none; padding: 15px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .movie-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border); background: var(--card); margin-bottom: 8px; border-radius: 8px; }
+        .movie-thumb { width: 45px; height: 60px; border-radius: 4px; object-fit: cover; }
+        @media (max-width: 1000px) { .container { grid-template-columns: 1fr; } .admin-card { position: static; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="admin-card">
+        <h2 style="color:var(--primary); margin:0 0 20px 0;"><i class="fas fa-tasks"></i> Content Manager</h2>
+        <input type="password" id="adminPass" placeholder="Admin Password" style="border-color:var(--danger); margin-bottom:15px;">
+        <input type="hidden" id="editId">
+
+        <div class="form-group"><label>Title</label><input type="text" id="title"></div>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="form-group">
+                <label>Category</label>
+                <select id="category">
+                    <option value="Movie">Movie</option>
+                    <option value="TV Show">TV Show</option>
+                    <option value="Anime">Anime</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Genre</label><input type="text" id="genre" placeholder="Action, Horror"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="form-group"><label>Year</label><input type="text" id="year"></div>
+            <div class="form-group"><label>Rating</label><input type="text" id="rating"></div>
+        </div>
+
+        <div class="form-group"><label>Poster URL</label><input type="text" id="thumb"></div>
+        <div class="form-group"><label>Description</label><textarea id="desc" rows="2"></textarea></div>
+
+        <div id="seasons-container"></div>
+        <button class="btn-add" onclick="addSeason()" style="background:#1f6feb;">+ Add New Season</button>
+        <button class="btn-submit" onclick="saveData()" id="submitBtn">PUBLISH CONTENT</button>
+    </div>
+
+    <div class="data-list">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Database (<span id="count">0</span>)</h3>
+            <input type="text" id="search" placeholder="Search..." onkeyup="filterData()" style="width:200px; padding:8px; background:var(--card); border:1px solid var(--border); color:white; border-radius:6px;">
+        </div>
+        <div id="listBody"></div>
+    </div>
+</div>
+
+<script>
+    let allItems = [];
+    let seasonCount = 0;
+
+    function addSeason(links = []) {
+        seasonCount++;
+        const sId = `s_${Date.now()}`;
+        const html = `
+            <div class="season-box" id="${sId}">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <b style="color:var(--primary)">Season ${seasonCount} (S${String(seasonCount).padStart(2, '0')})</b>
+                    <i class="fas fa-trash" onclick="document.getElementById('${sId}').remove()" style="cursor:pointer; color:red;"></i>
+                </div>
+                <div class="ep-list"></div>
+                <button class="btn-add" style="background:#238636; font-size:11px;" onclick="addEpisode(this)">+ Add Episode</button>
+            </div>`;
+        document.getElementById('seasons-container').insertAdjacentHTML('beforeend', html);
+        const lastSeasonList = document.getElementById(sId).querySelector('.ep-list');
+        if(links.length > 0) links.forEach(l => addEpisode(null, lastSeasonList, l));
+        else addEpisode(null, lastSeasonList);
+    }
+
+    function addEpisode(btn, targetList = null, val = "") {
+        const list = targetList || btn.previousElementSibling;
+        const input = `<div class="ep-row"><input type="text" class="ep-link" value="${val}" placeholder="Video Link"></div>`;
+        list.insertAdjacentHTML('beforeend', input);
+    }
+
+    async function fetchAll() {
+        const res = await fetch('/api/series');
+        allItems = await res.json();
+        renderList(allItems);
+    }
+
+    function renderList(data) {
+        document.getElementById('count').innerText = data.length;
+        document.getElementById('listBody').innerHTML = data.map(item => `
+            <div class="movie-row">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <img src="${item.thumb}" class="movie-thumb">
+                    <div><b>${item.title}</b><br><small style="color:var(--primary)">${item.category}</small></div>
+                </div>
+                <div>
+                    <button onclick="editItem('${item._id}')" style="background:none; border:none; color:cyan; cursor:pointer; font-size:18px; margin-right:15px;"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteItem('${item._id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:18px;"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+    }
+
+    function filterData() {
+        const q = document.getElementById('search').value.toLowerCase();
+        renderList(allItems.filter(i => i.title.toLowerCase().includes(q)));
+    }
+
+    async function saveData() {
+        const pass = document.getElementById('adminPass').value;
+        if(!pass) return alert("Admin Password Required!");
+
+        let seasonsObj = {};
+        document.querySelectorAll('.season-box').forEach((box, i) => {
+            const sName = `S${String(i+1).padStart(2, '0')}`;
+            const links = Array.from(box.querySelectorAll('.ep-link')).map(el => el.value.trim()).filter(l => l);
+            if(links.length > 0) {
+                seasonsObj[sName] = links.map((url, idx) => ({ name: `Episode ${idx+1}`, url: url }));
+            }
+        });
+
+        const payload = {
+            title: document.getElementById('title').value,
+            category: document.getElementById('category').value,
+            genre: document.getElementById('genre').value,
+            year: document.getElementById('year').value,
+            rating: document.getElementById('rating').value,
+            thumb: document.getElementById('thumb').value,
+            desc: document.getElementById('desc').value,
+            seasons: seasonsObj,
+            watchUrl: Object.keys(seasonsObj).length > 0 ? seasonsObj[Object.keys(seasonsObj)[0]][0].url : ""
+        };
+
+        const id = document.getElementById('editId').value;
+        const res = await fetch(id ? `/api/series/${id}` : '/api/series', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pass, data: payload })
+        });
+        if(res.ok) location.reload(); else alert("Failed to save!");
+    }
+
+    function editItem(id) {
+        const item = allItems.find(i => i._id === id);
+        document.getElementById('editId').value = item._id;
+        document.getElementById('title').value = item.title;
+        document.getElementById('category').value = item.category;
+        document.getElementById('genre').value = item.genre || "";
+        document.getElementById('year').value = item.year;
+        document.getElementById('rating').value = item.rating;
+        document.getElementById('thumb').value = item.thumb;
+        document.getElementById('desc').value = item.desc || "";
+        
+        document.getElementById('seasons-container').innerHTML = "";
+        seasonCount = 0;
+        if(item.seasons) {
+            for(let s in item.seasons) addSeason(item.seasons[s].map(e => e.url));
+        }
+        document.getElementById('submitBtn').innerText = "UPDATE CONTENT";
+        window.scrollTo(0,0);
+    }
+
+    async function deleteItem(id) {
+        const pass = document.getElementById('adminPass').value;
+        if(!pass || !confirm("Delete this content?")) return;
+        const res = await fetch(`/api/series/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pass })
+        });
+        if(res.ok) fetchAll();
+    }
+
+    window.onload = () => { fetchAll(); addSeason(); };
+</script>
+</body>
+</html>

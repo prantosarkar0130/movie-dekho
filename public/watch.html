@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch - MovieBox</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #00ff88; --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+
+        /* Main Layout */
+        .main-wrapper { display: grid; grid-template-columns: 1fr 320px; gap: 20px; padding: 20px 4%; max-width: 1400px; margin: 0 auto; }
+
+        /* Player Section */
+        .content-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .box-header { padding: 12px 20px; border-bottom: 1px solid var(--border); font-weight: bold; color: var(--text-dim); }
+        
+        .player-container { width: 100%; aspect-ratio: 16/9; background: #000; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        /* Info Area */
+        .info-area { padding: 25px; }
+        .m-title { font-size: 28px; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
+        .m-meta { color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+        .m-desc-label { color: var(--text-dim); font-size: 14px; margin-bottom: 5px; font-weight: bold; }
+        .m-desc { line-height: 1.6; color: var(--text); border-top: 1px solid var(--border); padding-top: 15px; margin-top: 10px; }
+
+        /* Sidebar Section */
+        .sidebar-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+        .side-title { color: var(--primary); font-weight: bold; margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        /* Resource Button */
+        .resource-link { background: #1a4a35; color: var(--primary); padding: 12px; border-radius: 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border: 1px solid var(--primary); display: block; text-decoration: none; transition: 0.3s; }
+        .resource-link:hover { background: var(--primary); color: #000; }
+
+        /* Right List Items */
+        .list-item { display: flex; gap: 10px; margin-bottom: 15px; cursor: pointer; transition: 0.2s; padding: 5px; border-radius: 6px; }
+        .list-item:hover { background: #21262d; }
+        .list-thumb { width: 55px; height: 75px; border-radius: 4px; object-fit: cover; background: #0d1117; }
+        .list-info b { font-size: 13px; display: block; margin-bottom: 2px; color: var(--text); }
+        .list-info small { color: var(--text-dim); font-size: 11px; }
+
+        /* Ad Banner */
+        .ad-banner { background: linear-gradient(90deg, #00ff88, #0088ff); border-radius: 12px; padding: 20px; margin-top: 25px; display: flex; justify-content: space-between; align-items: center; }
+        .ad-btn { background: white; color: black; padding: 10px 20px; border-radius: 50px; font-weight: bold; border: none; cursor: pointer; }
+
+        @media (max-width: 1000px) { .main-wrapper { grid-template-columns: 1fr; } .sidebar { order: 2; } }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="content-left">
+            <div class="content-box">
+                <div class="box-header">Movie Details</div>
+                
+                <div class="player-container">
+                    <iframe id="mainPlayer" allowfullscreen allow="autoplay"></iframe>
+                </div>
+
+                <div class="info-area">
+                    <div class="m-desc-label">m-Title</div>
+                    <div class="m-title" id="mTitle">Loading...</div>
+                    <div class="m-meta">
+                        <span id="mYear"></span> • <span id="mRating"></span> • <span id="mGenre"></span>
+                    </div>
+                    
+                    <div class="m-desc-label">m-Descp</div>
+                    <div class="m-desc" id="mDesc"></div>
+                </div>
+            </div>
+
+            <div class="ad-banner">
+                <div style="color:black">
+                    <h3 style="margin:0">DOWNLOAD MOVIEBOX FREE</h3>
+                    <p style="margin:5px 0 0 0; font-weight: 500;">Fast Streaming • Direct Play • Offline Watch</p>
+                </div>
+                <button class="ad-btn">GET APP</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-box">
+                <div class="side-title">Resources</div>
+                <a id="downloadLink" href="#" target="_blank" class="resource-link">Stream/Download</a>
+            </div>
+
+            <div class="sidebar-box">
+                <div class="side-title">Related Content</div>
+                <div id="rightList">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // বর্তমান মুভি ডাটা নেওয়া
+        let currentMovie = JSON.parse(localStorage.getItem('currentMovie'));
+
+        async function init() {
+            if (!currentMovie) { window.location.href = "index.html"; return; }
+
+            // পেজে ডাটা বসানো
+            document.getElementById('mTitle').innerText = currentMovie.title;
+            document.getElementById('mYear').innerText = currentMovie.year;
+            document.getElementById('mRating').innerText = "⭐ " + currentMovie.rating;
+            document.getElementById('mGenre').innerText = currentMovie.genre || "General";
+            document.getElementById('mDesc').innerText = currentMovie.desc || "No description available for this content.";
+            document.getElementById('mainPlayer').src = currentMovie.watchUrl;
+            document.getElementById('downloadLink').href = currentMovie.watchUrl;
+            document.getElementById('downloadLink').innerText = currentMovie.title + " (Link)";
+
+            // API থেকে অন্য মুভিগুলো লোড করা
+            try {
+                const res = await fetch('/api/series');
+                const allData = await res.json();
+                
+                // বর্তমান মুভি বাদে বাকিগুলো ফিল্টার করা
+                const related = allData.filter(m => m._id !== currentMovie._id).slice(0, 8);
+                
+                const listHtml = related.map(m => `
+                    <div class="list-item" onclick='handleRelatedClick(${JSON.stringify(m)})'>
+                        <img src="${m.thumb}" class="list-thumb">
+                        <div class="list-info">
+                            <b>${m.title}</b>
+                            <small>${m.year} • ${m.category}</small>
+                        </div>
+                    </div>
+                `).join('');
+                
+                document.getElementById('rightList').innerHTML = listHtml;
+            } catch (err) {
+                console.error("Related content load failed");
+            }
+        }
+
+        // রিলেটেড কার্ডে ক্লিক করলে ক্যাটাগরি অনুযায়ী পেজ চেঞ্জ হবে
+        function handleRelatedClick(item) {
+            localStorage.setItem('currentMovie', JSON.stringify(item));
+            
+            // ক্যাটাগরি চেক করে রিডাইরেক্ট
+            if (item.category === "Movie") {
+                window.location.href = "watch.html";
+            } else {
+                window.location.href = "series.html";
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
