@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = "1122"; 
 
 // আপনার MongoDB লিঙ্ক এখানে দিন (পাসওয়ার্ডসহ)
-const MONGO_URI = "mongodb+srv://user:password@cluster.mongodb.net/moviebox?retryWrites=true&w=majority"; 
+const MONGO_URI = "mongodb+srv://prantosarkar0130_db_user:<tepimim420>@trial.1iz7hrg.mongodb.net/?appName=Trial"; 
 
 app.use(cors());
 app.use(express.json());
@@ -55,5 +55,6 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 app.get('/details', (req, res) => res.sendFile(path.join(__dirname, 'public', 'details.html')));
 app.get('/series', (req, res) => res.sendFile(path.join(__dirname, 'public', 'series.html')));
 app.get('/watch', (req, res) => res.sendFile(path.join(__dirname, 'public', 'watch.html')));
+
 
 app.listen(PORT, () => console.log(`🚀 Live on Port: ${PORT}`));
