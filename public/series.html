@@ -54,7 +54,7 @@
         .season-tabs { 
             display: flex; 
             gap: 8px; 
-            overflow-x: auto; 
+            flex-wrap: wrap;
             padding-bottom: 10px; 
             margin-bottom: 15px; 
             border-bottom: 1px solid var(--border); 
@@ -100,6 +100,35 @@
             box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); 
         }
 
+        /* Recommendation Section Style (details.html er moto) */
+        .more-section { margin-top: 40px; padding: 0 4%; max-width: 1600px; margin-inline: auto; margin-bottom: 50px; }
+        .section-title { font-size: 22px; font-weight: bold; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        
+        .movie-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+            gap: 20px; 
+        }
+
+        .movie-card { 
+            background: var(--card); 
+            border-radius: 10px; 
+            overflow: hidden; 
+            transition: 0.3s; 
+            border: 1px solid var(--border); 
+            cursor: pointer; 
+            position: relative;
+        }
+        .movie-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+        .movie-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+        .card-info { padding: 12px; }
+        .card-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-meta { font-size: 12px; color: var(--text-gray); display: flex; justify-content: space-between; }
+        .lang-tag { 
+            position: absolute; top: 8px; left: 8px; background: rgba(0,255,136,0.9); 
+            color: #000; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; 
+        }
+
         /* --- নিখুঁত রেসপন্সিভ লজিক --- */
         @media (max-width: 1100px) { 
             .main-wrapper { grid-template-columns: 1fr; } 
@@ -111,13 +140,14 @@
             .m-title { font-size: 22px; }
             .m-details-box { padding: 15px; }
             .ep-grid { grid-template-columns: repeat(4, 1fr); }
+            .movie-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+            .more-section { padding: 0 3%; }
         }
 
         @media (max-width: 480px) {
             .ep-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
             .ep-btn { padding: 10px 0; font-size: 13px; }
             .m-title { font-size: 20px; }
-            .m-details-box { margin-top: 15px; }
         }
     </style>
 </head>
@@ -145,10 +175,18 @@
         </div>
     </div>
 
+    <div class="more-section">
+        <div class="section-title">
+            <i class="fas fa-layer-group"></i> More Like This
+        </div>
+        <div id="recommendationGrid" class="movie-grid">
+            </div>
+    </div>
+
     <script>
         let movie = JSON.parse(localStorage.getItem('currentMovie'));
 
-        function init() {
+        async function init() {
             if (!movie) return window.location.href = "index.html";
             
             document.getElementById('sTitle').innerText = movie.title;
@@ -165,6 +203,46 @@
                 `).join('');
                 renderEpisodes(seasons[keys[0]]);
             }
+
+            // Recommendation load
+            loadRecommendations();
+        }
+
+        async function loadRecommendations() {
+            try {
+                const res = await fetch('/api/series');
+                const allData = await res.json();
+                
+                // Current item bad diye baki gulo filter kora
+                const filtered = allData.filter(m => m._id !== movie._id).slice(0, 12);
+                
+                const recGrid = document.getElementById('recommendationGrid');
+                recGrid.innerHTML = filtered.map(m => `
+                    <div class="movie-card" onclick="openDetails('${m._id}')">
+                        ${m.langTag ? `<div class="lang-tag">${m.langTag}</div>` : ''}
+                        <img src="${m.thumb}" alt="${m.title}">
+                        <div class="card-info">
+                            <div class="card-title">${m.title}</div>
+                            <div class="card-meta">
+                                <span>${m.year}</span>
+                                <span style="color:var(--primary)"><i class="fas fa-star"></i> ${m.rating}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Failed to load recommendations", err);
+            }
+        }
+
+        function openDetails(id) {
+            fetch(`/api/series`)
+                .then(res => res.json())
+                .then(data => {
+                    const selected = data.find(m => m._id === id);
+                    localStorage.setItem('currentMovie', JSON.stringify(selected));
+                    window.location.href = selected.category === 'TV Show' ? 'series.html' : 'details.html';
+                });
         }
 
         function renderEpisodes(eps) {
@@ -180,7 +258,6 @@
             document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
             if(btn) {
                 btn.classList.add('active');
-                // মোবাইল স্ক্রিনে প্লে করার সময় প্লেয়ারের কাছে অটো স্ক্রল হবে
                 if(window.innerWidth < 1100) {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }

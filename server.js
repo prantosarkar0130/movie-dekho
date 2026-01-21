@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const mongoose = require('mongoose'); // Eta define kora thakte hobe
 const cors = require('cors');
 const path = require('path');
 
@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = "1122"; 
 
-// --- আপনার MongoDB লিঙ্ক এখানে দিন ---
+// --- MongoDB Atlas Connection String ---
 const MONGO_URI = "mongodb+srv://prantosarkar0130_db_user:tepimim420@trial.1iz7hrg.mongodb.net/?appName=Trial"; 
 
 app.use(cors());
@@ -15,18 +15,29 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected!"))
-    .catch(err => console.error("❌ Connection Error:", err));
+    .then(() => console.log("✅ MongoDB Connected Successfully!"))
+    .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
+// Database Schema
 const movieSchema = new mongoose.Schema({
-    title: String, thumb: String, year: String, rating: String,
-    category: String, genre: String, desc: String, watchUrl: String,
-    seasons: Object, dateAdded: { type: Date, default: Date.now }
+    title: String, 
+    thumb: String,
+    langTag: { type: String, default: "" }, 
+    year: String, 
+    rating: String,
+    category: String, 
+    genre: String, 
+    desc: String, 
+    watchUrl: String, 
+    seasons: { type: Object, default: {} }, 
+    dateAdded: { type: Date, default: Date.now }
 });
 
 const Movie = mongoose.model('Movie', movieSchema);
 
-// API: সব ডাটা পাওয়ার জন্য
+// --- API ROUTES ---
+
+// 1. Get All Movies/Series
 app.get('/api/series', async (req, res) => {
     try {
         const movies = await Movie.find().sort({ dateAdded: -1 });
@@ -34,7 +45,7 @@ app.get('/api/series', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Fetch failed" }); }
 });
 
-// API: নতুন মুভি অ্যাড করা
+// 2. Add New Content (Movie or Series)
 app.post('/api/series', async (req, res) => {
     const { password, data } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Wrong Password" });
@@ -45,7 +56,7 @@ app.post('/api/series', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Save Error" }); }
 });
 
-// API: মুভি আপডেট (এডিট) করা
+// 3. Update Content (Adding new episodes/seasons)
 app.put('/api/series/:id', async (req, res) => {
     const { password, data } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Wrong Password" });
@@ -55,7 +66,7 @@ app.put('/api/series/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Update Error" }); }
 });
 
-// API: ডিলিট করা
+// 4. Delete Content
 app.delete('/api/series/:id', async (req, res) => {
     const { password } = req.body;
     if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
@@ -65,7 +76,7 @@ app.delete('/api/series/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Delete Error" }); }
 });
 
-// HTML Routes
+// Default Route to serve index.html
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () => console.log(`🚀 Live on Port: ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on: http://localhost:${PORT}`));

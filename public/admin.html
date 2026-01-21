@@ -2,130 +2,283 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Panel - MovieBox</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Admin Panel - MovieBox</title>
     <style>
-        body { font-family: sans-serif; background: #111; color: white; padding: 20px; }
-        .form-box { background: #222; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        input, textarea, select { width: 100%; padding: 10px; margin: 10px 0; background: #333; color: white; border: 1px solid #444; }
-        button { background: #e50914; color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 5px; }
-        .movie-item { background: #222; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 5px;}
-        .edit-btn { background: #ffa500; margin-right: 10px; }
+        :root { --primary: #00ff88; --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        
+        #authOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .auth-box { background: var(--card); padding: 35px; border-radius: 12px; border: 1px solid var(--border); text-align: center; width: 320px; }
+
+        .container { max-width: 1000px; margin: 0 auto; display: none; }
+        .form-box { background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 30px; }
+        
+        input, textarea, select { width: 100%; padding: 12px; margin: 10px 0; background: #0d1117; color: white; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+        button { background: var(--primary); color: #000; padding: 12px 25px; border: none; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+
+        .search-container { margin-bottom: 20px; }
+        .search-input { border: 2px solid var(--primary) !important; font-size: 16px; }
+
+        .movie-item { 
+            background: var(--card); padding: 10px; margin-bottom: 10px; 
+            display: flex; align-items: center; justify-content: space-between; 
+            border-radius: 8px; border: 1px solid var(--border); 
+        }
+        .item-info { display: flex; align-items: center; gap: 15px; }
+        .item-thumb { width: 50px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); }
+        
+        .action-btns { display: flex; gap: 10px; }
+        .edit-btn { background: #ffa500; color: #000; }
+        .del-btn { background: #ff4444; color: #fff; }
+
+        #seriesSection { background: #1c2128; padding: 15px; border-radius: 8px; margin-top: 15px; display: none; border: 1px dashed #444; }
+        .episode-row { display: flex; gap: 10px; margin-bottom: 10px; background: #21262d; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <h2>🎬 Admin Panel</h2>
-
-    <div class="form-box">
-        <h3 id="formTitle">Add New Movie/Series</h3>
-        <input type="hidden" id="movieId">
-        <input type="text" id="title" placeholder="Title">
-        <input type="text" id="thumb" placeholder="Thumbnail URL">
-        <input type="text" id="year" placeholder="Year">
-        <input type="text" id="rating" placeholder="Rating">
-        <select id="category">
-            <option value="movie">Movie</option>
-            <option value="series">Series</option>
-        </select>
-        <input type="text" id="genre" placeholder="Genre (Action, Drama)">
-        <textarea id="desc" placeholder="Description"></textarea>
-        <input type="text" id="watchUrl" placeholder="Video Link / Watch URL">
-        <button id="submitBtn" onclick="saveMovie()">Save Movie</button>
-        <button id="cancelBtn" style="display:none; background:#555;" onclick="resetForm()">Cancel</button>
+    <div id="authOverlay">
+        <div class="auth-box">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Admin Login</h2>
+            <input type="text" id="adminUser" placeholder="Username">
+            <input type="password" id="adminPass" placeholder="Password">
+            <br><br>
+            <button onclick="checkAccess()" style="width: 100%;">Verify & Enter</button>
+        </div>
     </div>
 
-    <h3>Existing Movies</h3>
-    <div id="movieList"></div>
+    <div class="container" id="adminContent">
+        <h2 style="color: var(--primary);">🎬 MovieBox Management</h2>
+
+        <div class="form-box">
+            <h3 id="formTitle">Add New Content</h3>
+            <input type="hidden" id="movieId">
+            <input type="text" id="title" placeholder="Content Title">
+            <input type="text" id="thumb" placeholder="Thumbnail URL">
+            <input type="text" id="langTag" placeholder="Language Tag (e.g. Hindi, Dual Audio)">
+            
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="year" placeholder="Year">
+                <input type="text" id="rating" placeholder="Rating">
+            </div>
+            <select id="category" onchange="toggleCategory()">
+                <option value="Movie">Movie</option>
+                <option value="TV Show">TV Show (Series)</option>
+            </select>
+            <input type="text" id="genre" placeholder="Genre">
+            <textarea id="desc" rows="3" placeholder="Description"></textarea>
+            
+            <div id="movieLinkSection">
+                <input type="text" id="watchUrl" placeholder="Paste Direct Drive Link or URL">
+                <small style="color: #8b949e;">Drive links auto-convert to embed.</small>
+            </div>
+
+            <div id="seriesSection">
+                <h4>Seasons & Episodes</h4>
+                <div id="seasonsContainer"></div>
+                <button type="button" style="background: #0088ff; color: white;" onclick="addSeason()">+ Add Season</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button id="submitBtn" onclick="saveMovie()">🚀 Save Content</button>
+                <button id="cancelBtn" style="display:none; background:#555; color: white;" onclick="resetForm()">Cancel</button>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search content..." onkeyup="filterList()">
+        </div>
+
+        <h3>Existing Content</h3>
+        <div id="movieList"></div>
+    </div>
 
     <script>
-        const ADMIN_PASS = "1122";
+        // --- Admin Configuration ---
+        const USERNAME = "admin";
+        const PASSWORD = "1122";
+        
+        let sessionPass = ""; // Ekhane password-ti store hobe login korle
+        let seasonData = {};
+        let allMovies = [];
 
-        // ডাটা লোড করা
+        // 1. First Time Login Function
+        function checkAccess() {
+            const user = document.getElementById('adminUser').value;
+            const pass = document.getElementById('adminPass').value;
+            
+            if (user === USERNAME && pass === PASSWORD) {
+                sessionPass = pass; // Save password to session
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+                loadMovies();
+            } else {
+                alert("Wrong Username or Password!");
+            }
+        }
+
+        // Drive Link Converter
+        function convertDriveLink(url) {
+            if (url && url.includes("drive.google.com")) {
+                let driveId = "";
+                if (url.includes("/file/d/")) {
+                    driveId = url.split("/file/d/")[1].split("/")[0];
+                } else if (url.includes("id=")) {
+                    driveId = url.split("id=")[1].split("&")[0];
+                }
+                if (driveId) return `https://drive.google.com/file/d/${driveId}/preview`;
+            }
+            return url;
+        }
+
+        function toggleCategory() {
+            const cat = document.getElementById('category').value;
+            document.getElementById('seriesSection').style.display = (cat === 'TV Show') ? 'block' : 'none';
+            document.getElementById('movieLinkSection').style.display = (cat === 'Movie') ? 'block' : 'none';
+        }
+
+        function addSeason() {
+            const sName = prompt("Season Name:", "Season " + (Object.keys(seasonData).length + 1));
+            if (sName && !seasonData[sName]) {
+                seasonData[sName] = [];
+                renderSeasons();
+            }
+        }
+
+        function addEpisode(sName) {
+            seasonData[sName].push({ title: "Episode " + (seasonData[sName].length + 1), url: "" });
+            renderSeasons();
+        }
+
+        function renderSeasons() {
+            const container = document.getElementById('seasonsContainer');
+            container.innerHTML = "";
+            for (let sName in seasonData) {
+                let html = `<div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between;"><strong>${sName}</strong> 
+                    <button onclick="addEpisode('${sName}')" style="padding:2px 8px; font-size:11px;">+ Ep</button></div>`;
+                seasonData[sName].forEach((ep, i) => {
+                    html += `<div class="episode-row">
+                        <input type="text" value="${ep.title}" onchange="seasonData['${sName}'][${i}].title=this.value">
+                        <input type="text" placeholder="URL" value="${ep.url}" onchange="seasonData['${sName}'][${i}].url=this.value">
+                    </div>`;
+                });
+                html += `</div>`;
+                container.innerHTML += html;
+            }
+        }
+
         async function loadMovies() {
             const res = await fetch('/api/series');
-            const data = await res.json();
+            allMovies = await res.json();
+            displayList(allMovies);
+        }
+
+        function displayList(data) {
             const list = document.getElementById('movieList');
             list.innerHTML = data.map(m => `
                 <div class="movie-item">
-                    <span><b>${m.title}</b> (${m.category})</span>
-                    <div>
-                        <button class="edit-btn" onclick="editMovie('${encodeURIComponent(JSON.stringify(m))}')">Edit</button>
-                        <button onclick="deleteMovie('${m._id}')">Delete</button>
+                    <div class="item-info">
+                        <img src="${m.thumb}" class="item-thumb">
+                        <div>
+                            <div style="font-weight:bold;">${m.title}</div>
+                            <small style="color:var(--primary)">${m.langTag ? m.langTag + ' • ' : ''}${m.category} • ${m.year}</small>
+                        </div>
+                    </div>
+                    <div class="action-btns">
+                        <button class="edit-btn" onclick="editMovie('${m._id}')">Edit</button>
+                        <button class="del-btn" onclick="deleteMovie('${m._id}')">Delete</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        // সেভ বা আপডেট করা
-        async function saveMovie() {
-            const id = document.getElementById('movieId').value;
-            const data = {
-                title: document.getElementById('title').value,
-                thumb: document.getElementById('thumb').value,
-                year: document.getElementById('year').value,
-                rating: document.getElementById('rating').value,
-                category: document.getElementById('category').value,
-                genre: document.getElementById('genre').value,
-                desc: document.getElementById('desc').value,
-                watchUrl: document.getElementById('watchUrl').value
-            };
-
-            const method = id ? 'PUT' : 'POST';
-            const url = id ? `/api/series/${id}` : '/api/series';
-
-            const res = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: ADMIN_PASS, data })
-            });
-
-            if (res.ok) {
-                alert("Successfully Saved!");
-                resetForm();
-                loadMovies();
-            } else {
-                alert("Failed to save! Check console.");
-            }
+        function filterList() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allMovies.filter(m => m.title.toLowerCase().includes(term));
+            displayList(filtered);
         }
 
-        // এডিট মোড চালু করা
-        function editMovie(movieStr) {
-            const m = JSON.parse(decodeURIComponent(movieStr));
+        function editMovie(id) {
+            const m = allMovies.find(i => i._id === id);
             document.getElementById('movieId').value = m._id;
             document.getElementById('title').value = m.title;
             document.getElementById('thumb').value = m.thumb;
+            document.getElementById('langTag').value = m.langTag || "";
             document.getElementById('year').value = m.year;
             document.getElementById('rating').value = m.rating;
             document.getElementById('category').value = m.category;
             document.getElementById('genre').value = m.genre;
             document.getElementById('desc').value = m.desc;
-            document.getElementById('watchUrl').value = m.watchUrl;
-
-            document.getElementById('formTitle').innerText = "Edit Movie";
-            document.getElementById('submitBtn').innerText = "Update Movie";
+            document.getElementById('watchUrl').value = m.watchUrl || "";
+            seasonData = m.seasons || {};
+            toggleCategory();
+            renderSeasons();
+            document.getElementById('formTitle').innerText = "Editing: " + m.title;
+            document.getElementById('submitBtn').innerText = "Update Content";
             document.getElementById('cancelBtn').style.display = "inline-block";
+            window.scrollTo(0,0);
         }
 
-        // ডিলিট করা
+        // --- 2. Save/Update (NO PROMPT HERE) ---
+        async function saveMovie() {
+            const id = document.getElementById('movieId').value;
+            
+            let finalUrl = document.getElementById('watchUrl').value;
+            finalUrl = convertDriveLink(finalUrl);
+
+            for (let sName in seasonData) {
+                seasonData[sName].forEach(ep => {
+                    ep.url = convertDriveLink(ep.url);
+                });
+            }
+
+            const data = {
+                title: document.getElementById('title').value,
+                thumb: document.getElementById('thumb').value,
+                langTag: document.getElementById('langTag').value,
+                year: document.getElementById('year').value,
+                rating: document.getElementById('rating').value,
+                category: document.getElementById('category').value,
+                genre: document.getElementById('genre').value,
+                desc: document.getElementById('desc').value,
+                watchUrl: finalUrl,
+                seasons: seasonData
+            };
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/series/${id}` : '/api/series';
+            
+            // Password 'sessionPass' theke auto niye nibe jeta login er somoy save hoyechilo
+            await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: sessionPass, data })
+            });
+            location.reload();
+        }
+
+        // --- 3. Delete (Prompt only here) ---
         async function deleteMovie(id) {
+            const confirmPass = prompt("Enter Password to DELETE content:");
+            if(confirmPass !== PASSWORD) {
+                alert("Incorrect Password!");
+                return;
+            }
+
             if(!confirm("Are you sure?")) return;
-            const res = await fetch(`/api/series/${id}`, {
+            
+            await fetch(`/api/series/${id}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: ADMIN_PASS })
+                body: JSON.stringify({ password: PASSWORD })
             });
-            if (res.ok) { loadMovies(); }
+            loadMovies();
         }
 
-        function resetForm() {
-            document.getElementById('movieId').value = "";
-            document.getElementById('title').value = "";
-            document.getElementById('formTitle').innerText = "Add New Movie/Series";
-            document.getElementById('submitBtn').innerText = "Save Movie";
-            document.getElementById('cancelBtn').style.display = "none";
-        }
-
-        loadMovies();
+        function resetForm() { location.reload(); }
     </script>
 </body>
 </html>
